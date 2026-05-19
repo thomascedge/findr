@@ -143,6 +143,9 @@ async def edit_message(message_id: UUID, payload: MessageEdit, current_user: Use
     if message.sender_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own messages" )
     
+    if message.deleted_at:
+        raise HTTPException(status_code=400, detail="Message deleted.")
+    
     message.body = payload.body
     message.edited_at = utcnow()
     await db.commit()
@@ -158,6 +161,9 @@ async def delete_message(message_id: UUID, current_user: User = Depends(get_curr
     
     if message.sender_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own messages" )
+    
+    if message.deleted_at:
+        raise HTTPException(status_code=400, detail="Message deleted.")
     
     message.deleted_at = utcnow()
     await db.commit()

@@ -74,6 +74,6 @@ async def get_nearby_from_redis(lat: float, lng: float, geohash: str, exclude_us
     return nearby_users
 
 
-async def get_pubsub_channel(geohash: str) -> str:
+def get_pubsub_channel(geohash: str) -> str:
     """Returns the pub/sub channel for a given geohash"""
     return _geohash_channel(geohash)

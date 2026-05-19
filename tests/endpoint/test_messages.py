@@ -1,4 +1,5 @@
 import pytest
+from uuid import UUID
 from httpx import AsyncClient
 
 
@@ -141,7 +142,7 @@ async def test_edit_someone_elses_message(client: AsyncClient, auth_headers, aut
 async def test_edit_deleted_message(client: AsyncClient, auth_headers, test_user_2):
     """Editing a soft-deleted message should not succeed."""
     send_resp = await client.post(f"/api/v1/messages/send?recipient_id={test_user_2.id}", json={"body": "Hello!"}, headers=auth_headers)
-    message_id = send_resp.json()["id"]
+    message_id = UUID(send_resp.json()["id"])
 
     await client.delete(f"/api/v1/messages/{message_id}", headers=auth_headers)
     response = await client.patch(f"/api/v1/messages/{message_id}", json={"body": "Updated!"}, headers=auth_headers)
@@ -157,7 +158,7 @@ async def test_delete_message_success(client: AsyncClient, auth_headers, test_us
     from sqlalchemy import select
 
     send_resp = await client.post(f"/api/v1/messages/send?recipient_id={test_user_2.id}", json={"body": "Hello!"}, headers=auth_headers)
-    message_id = send_resp.json()["id"]
+    message_id = UUID(send_resp.json()["id"])
 
     response = await client.delete(f"/api/v1/messages/{message_id}", headers=auth_headers)
     assert response.status_code == 200
@@ -181,7 +182,7 @@ async def test_delete_someone_elses_message(client: AsyncClient, auth_headers, a
 async def test_delete_already_deleted_message(client: AsyncClient, auth_headers, test_user_2):
     """Deleting an already deleted message should return 400."""
     send_resp = await client.post(f"/api/v1/messages/send?recipient_id={test_user_2.id}", json={"body": "Hello!"}, headers=auth_headers)
-    message_id = send_resp.json()["id"]
+    message_id = UUID(send_resp.json()["id"])
 
     await client.delete(f"/api/v1/messages/{message_id}", headers=auth_headers)
     response = await client.delete(f"/api/v1/messages/{message_id}", headers=auth_headers)

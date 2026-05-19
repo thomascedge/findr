@@ -68,7 +68,6 @@ async def get_chat_members(
         raise HTTPException(status_code=403, detail="User not member of chat.")
 
     return member_ids
-    
 
 
 @router.post("/{chat_id}/members")
@@ -96,7 +95,7 @@ async def add_member(
         raise HTTPException(status_code=403, detail="You are not a member of this chat.")
 
     result = await db.execute(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == UUID(user_id))
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
     )
     user_member = result.scalar_one_or_none()
     if user_member:
@@ -130,7 +129,7 @@ async def remove_member(
         raise HTTPException(status_code=404, detail="User not found.")
 
     result = await db.execute(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == UUID(user_id))
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
     )
     chat_member = result.scalar_one_or_none()
     if not chat_member:
@@ -139,7 +138,7 @@ async def remove_member(
     if chat_member.is_admin:
         raise HTTPException(status_code=400, detail="Cannot remove an admin.")
 
-    await db.execute(delete(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == UUID(user_id)))
+    await db.execute(delete(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id))
     await db.commit()
     return {"status": "removed"}
 
@@ -164,7 +163,7 @@ async def transfer_admin_access(
 
     # Verify target user is a member
     result = await db.execute(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == UUID(user_id))
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
     )
     target_member = result.scalar_one_or_none()
     if not target_member:

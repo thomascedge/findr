@@ -1,32 +1,28 @@
-# tests/integration/conftest.py
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from starlette.testclient import TestClient
 from app.main import app
 
 
-@pytest_asyncio.fixture
-async def client():
+@pytest.fixture(scope="module")
+def client():
     """
     Integration test client — uses the live stack (Postgres + Redis).
     Requires docker compose up before running.
+    Uses Starlette's TestClient for WebSocket support.
     """
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
+    with TestClient(app) as c:
+        yield c
 
 
-@pytest_asyncio.fixture
-async def auth_headers(client: AsyncClient):
+@pytest.fixture(scope="module")
+def auth_headers(client):
     """Register and log in a fresh user for each test."""
-    # 1. Register a new user via POST /api/v1/auth/register
-    # 2. Log in via POST /api/v1/auth/token
-    # 3. Return {"Authorization": f"Bearer {token}"}
-    await client.post("/api/v1/auth/register", json={
+    client.post("/api/v1/auth/register", json={
         "username": "integration_user",
         "email": "integration@test.com",
         "password": "password123",
     })
-    response = await client.post("/api/v1/auth/token", data={
+    response = client.post("/api/v1/auth/token", data={
         "username": "integration_user",
         "password": "password123",
     })
@@ -34,15 +30,15 @@ async def auth_headers(client: AsyncClient):
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest_asyncio.fixture
-async def auth_headers_2(client: AsyncClient):
+@pytest.fixture(scope="module")
+def auth_headers_2(client):
     """A second user for multi-user WebSocket tests."""
-    await client.post("/api/v1/auth/register", json={
+    client.post("/api/v1/auth/register", json={
         "username": "integration_user_2",
         "email": "integration2@test.com",
         "password": "password123",
     })
-    response = await client.post("/api/v1/auth/token", data={
+    response = client.post("/api/v1/auth/token", data={
         "username": "integration_user_2",
         "password": "password123",
     })

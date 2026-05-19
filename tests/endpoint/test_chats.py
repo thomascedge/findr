@@ -1,3 +1,4 @@
+from uuid import UUID
 import pytest
 from httpx import AsyncClient
 
@@ -218,7 +219,7 @@ async def test_remove_admin_rejected(client: AsyncClient, auth_headers, test_use
     await db.refresh(user3)
 
     chat_resp = await client.post("/api/v1/chats/", json=[str(test_user_2.id), str(user3.id)], headers=auth_headers)
-    chat_id = chat_resp.json()["id"]
+    chat_id = UUID(chat_resp.json()["id"])
 
     # test_user is the admin — try to remove them
     from app.models.models import ChatMember
@@ -331,7 +332,7 @@ async def test_transfer_admin_to_already_admin(client: AsyncClient, auth_headers
     await db.refresh(user3)
 
     chat_resp = await client.post("/api/v1/chats/", json=[str(test_user_2.id), str(user3.id)], headers=auth_headers)
-    chat_id = chat_resp.json()["id"]
+    chat_id = UUID(chat_resp.json()["id"])
 
     # Make test_user_2 also an admin
     result = await db.execute(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == test_user_2.id))

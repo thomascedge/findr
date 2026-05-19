@@ -15,23 +15,24 @@ def miles_to_meters(miles: float) -> float:
 
 def haversine_query(lat: float, lng: float, radius_miles: float):
     return text("""
-                SELECT 
-                    ul.user_id,
-                    u.username,
-                    ul.lat,
-                    ul.lng,
-                    3958.8 * 2 * ASIN(
-                        SQRT(
-                            POWER(SIN(RADIANS(ul.lat - :lat) / 2), 2) +
-                            COS(RADIANS(:lat)) * COS(RADIANS(ul.lat)) *
-                            POWER(SIN(RADIANS(ul.lng - :lng) / 2), 2)
-                        )
-                    ) AS distance_miles
-                
-                FROM user_locations ul
-                JOIN users u ON u.id = ul.user_id
-                WHERE ul.is_visible = true
-                AND ul.user_id != :user_id
-                HAVING distance_miles <= :radius_miles
+                SELECT * FROM (
+                    SELECT 
+                        ul.user_id,
+                        u.username,
+                        ul.lat,
+                        ul.lng,
+                        3958.8 * 2 * ASIN(
+                            SQRT(
+                                POWER(SIN(RADIANS(ul.lat - :lat) / 2), 2) +
+                                COS(RADIANS(:lat)) * COS(RADIANS(ul.lat)) *
+                                POWER(SIN(RADIANS(ul.lng - :lng) / 2), 2)
+                            )
+                        ) AS distance_miles
+                    FROM user_locations ul
+                    JOIN users u ON u.id = ul.user_id
+                    WHERE ul.is_visible = :visible
+                    AND ul.user_id != :user_id
+                ) AS subq
+                WHERE distance_miles <= :radius_miles
                 ORDER BY distance_miles ASC
                 """)

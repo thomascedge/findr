@@ -23,7 +23,7 @@ async def update_my_location(payload: LocationUpdate,
         "lat": new_lat, 
         "lng": new_lng,
         "geohash": compute_geohash(new_lat, new_lng),
-        "is_visible": True,
+        "is_visible": payload.visible,
         "last_seen": utcnow()
     }
 
@@ -51,10 +51,11 @@ async def get_nearby(current_user: User = Depends(get_current_user),
     current_lat = user_location.lat
     current_lng = user_location.lng
     
-    location_data = {"user_id": current_user.id, 
+    location_data = {"user_id": str(current_user.id), 
                      "lat": current_lat, 
                      "lng": current_lng, 
-                     "radius_miles": radius_miles}
+                     "radius_miles": radius_miles,
+                     "visible": True}
     
     result = await db.execute(
         haversine_query(current_lat, current_lng, radius_miles),
@@ -62,6 +63,7 @@ async def get_nearby(current_user: User = Depends(get_current_user),
     )
     
     nearby_users = [NearbyUser(**row._mapping) for row in result]
+    nearby_users = [user for user in nearby_users if user.user_id != current_user.id]
     return nearby_users
 
 

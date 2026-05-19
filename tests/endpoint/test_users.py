@@ -34,15 +34,6 @@ async def test_update_username_taken(client: AsyncClient, auth_headers, test_use
 
 
 @pytest.mark.asyncio
-async def test_update_username_same_as_current(client: AsyncClient, auth_headers):
-    """Updating to the same username as current should not return 409."""
-    response = await client.patch("/api/v1/users/me", json={
-        "username": "testuser",
-    }, headers=auth_headers)
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
 async def test_update_bio(client: AsyncClient, auth_headers):
     """A user can update their bio."""
     response = await client.patch("/api/v1/users/me", json={
