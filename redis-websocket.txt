@@ -1,0 +1,45 @@
+Strings vs Hashes
+# String — simple key → value
+await redis.set("name", "thomas")
+await redis.get("name")  # → "thomas"
+
+# Hash — key → {field: value, field: value}
+# Like a Python dict stored under one key
+await redis.hset("presence:user123", mapping={"lat": "30.2", "lng": "-97.7", "username": "thomas"})
+await redis.hgetall("presence:user123")  # → {"lat": "30.2", "lng": "-97.7", "username": "thomas"}
+
+
+
+TTL
+# Key expires automatically after N seconds
+await redis.expire("presence:user123", 180)  # gone in 3 minutes
+
+
+
+Pub/Sub
+# Publisher — sends a message to a channel
+await redis.publish("map:9v6m3", json.dumps({"event": "user_joined", "user_id": "123"}))
+
+# Subscriber — listens to a channel (in the WebSocket endpoint)
+pubsub = redis.pubsub()
+await pubsub.subscribe("map:9v6m3")
+async for message in pubsub.listen():
+    print(message["data"])
+
+
+
+Delete a Key
+await redis.delete("presence:user123")
+
+
+
+Event Protocol
+# Client → Server
+{"event": "location_update", "payload": {"lat": 30.2, "lng": -97.7, "visible": true}}
+{"event": "heartbeat", "payload": {}}
+
+# Server → Client
+{"event": "map_snapshot", "payload": {"users": [...]}}
+{"event": "user_joined", "payload": {"user_id": ..., "username": ..., "lat": ..., "lng": ...}}
+{"event": "user_left", "payload": {"user_id": ...}}
+{"event": "error", "payload": {"detail": "..."}}
