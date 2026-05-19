@@ -1,4 +1,4 @@
-.PHONY: up down logs shell migrate migration downgrade reset lint test test-integration test-file test-one
+.PHONY: up down logs shell migrate migration downgrade reset lint test test-integration test-file test-one worker-logs beat-logs trigger-retention
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 
@@ -59,3 +59,17 @@ test-one:
 
 lint:
 	docker compose exec app ruff check app/
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+
+# Follow worker logs
+worker-logs:
+	docker compose logs -f celery-worker
+
+# Follow beat scheduler logs
+beat-logs:
+	docker compose logs -f celery-beat
+
+# Manually trigger the retention task without waiting for 2am
+trigger-retention:
+	docker compose exec app python -c "from app.workers.retention import purge_old_messages; purge_old_messages.delay()"

@@ -115,15 +115,51 @@ docker ps -a
 ```
 findr/
 ├── app/
-│   ├── api/routes/      # Route handlers
-│   ├── core/            # Auth, location logic
-│   ├── models/          # SQLAlchemy models
-│   ├── schemas/         # Pydantic schemas
-│   ├── db.py            # Database connection
-│   └── main.py          # FastAPI app entry point
-├── tests/               # pytest test suite
+│   ├── api/
+│   │   └── routes/              # Route handlers
+│   │       ├── auth.py
+│   │       ├── chats.py
+│   │       ├── location.py
+│   │       ├── messages.py
+│   │       ├── user.py
+│   │       └── ws.py
+│   ├── core/                    # Auth, location, presence logic
+│   │   ├── location.py
+│   │   ├── presence.py
+│   │   ├── redis.py
+│   │   ├── security.py
+│   │   └── variables.py
+│   ├── models/
+│   │   └── models.py            # SQLAlchemy models
+│   ├── schemas/
+│   │   └── schemas.py           # Pydantic schemas
+│   ├── workers/                 # Celery background tasks
+│   │   ├── celery_app.py
+│   │   └── retention.py
+│   ├── db.py                    # Database connection
+│   └── main.py                  # FastAPI app entry point
+├── migrations/                  # Alembic migrations
+│   ├── versions/
+│   │   └── 1f767692f59c_initial_schema.py
+│   ├── env.py
+│   └── script.py.mako
+├── tests/
+│   ├── endpoint/
+│   │   ├── conftest.py
+│   │   ├── test_auth.py
+│   │   ├── test_chats.py
+│   │   ├── test_location.py
+│   │   ├── test_messages.py
+│   │   └── test_users.py
+│   └── integration/
+│       ├── conftest.py
+│       └── test_ws.py
+├── logs/
+├── alembic.ini
 ├── docker-compose.yml
 ├── Dockerfile
+├── main.py
+├── Makefile
 ├── pytest.ini
 ├── requirements.txt
 └── ROADMAP.md

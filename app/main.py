@@ -1,7 +1,17 @@
+import logging
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.api.routes import auth, location, messages, chats, user, ws
 from app.core.redis import get_redis, close_redis
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+LOG = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
