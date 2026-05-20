@@ -2,7 +2,7 @@ import logging
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from app.api.routes import auth, location, messages, chats, user, ws
+from app.api.routes import auth, location, messages, chats, user, photos, ws
 from app.core.redis import get_redis, close_redis
 
 logging.basicConfig(
@@ -26,6 +26,7 @@ app.include_router(location.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
 app.include_router(chats.router,    prefix="/api/v1")
 app.include_router(user.router,     prefix="/api/v1")
+app.include_router(photos.router, prefix="/api/v1")
 app.include_router(ws.router)
 
 @app.get("/health")

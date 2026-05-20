@@ -8,7 +8,7 @@ celery.autodiscover_tasks(['app.workers'])
 celery.conf.update(
     worker_hijack_root_logger=False,
     broker_connection_retry_on_startup=True,
-    include=["app.workers.retention"],
+    include=["app.workers.retention", "app.workers.moderation"],
     timezone="UTC",
     beat_schedule={
         "retention.purge_old_messages": {
