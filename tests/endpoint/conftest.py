@@ -5,21 +5,22 @@ import pytest
 import pytest_asyncio
 import uuid
 from datetime import datetime, timezone, timedelta
+from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.main import app
 from app.db import Base, get_db
 from app.core.security import hash_password
 from app.models.models import User, Chat, Message, UserPhoto, ModerationStatus
-from unittest.mock import patch
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
-# Default date of birth for test users — 25 years old (passes 18+ check)
+# Default date of birth — 25 years old, passes 18+ check
 DEFAULT_DOB = datetime.now(timezone.utc) - timedelta(days=25 * 365)
 
 
@@ -36,6 +37,13 @@ async def setup_db():
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture(autouse=True)
+def mock_ses():
+    """Mock SES globally for all endpoint tests — no real emails sent."""
+    with patch("app.core.email.ses_client"):
+        yield
 
 
 @pytest_asyncio.fixture
@@ -107,7 +115,6 @@ async def auth_headers_2(client, test_user_2):
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-
 @pytest_asyncio.fixture
 async def test_photo(db: AsyncSession, test_user: User):
     """Factory fixture to seed a UserPhoto with customizable fields.
@@ -141,14 +148,7 @@ async def test_photo(db: AsyncSession, test_user: User):
     return _factory
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def mock_ses():
-    """Mock SES so no real email calls are made in endpoint tests."""
-    with patch("app.core.email.ses_client") as mock:
-        yield mock
-
-
-# ── Sync DB fixture for worker tests ──────────────────────────────────────────
+# ── Sync DB fixtures for worker tests ─────────────────────────────────────────
 
 SYNC_TEST_DATABASE_URL = "sqlite:///./test_sync.db"
 sync_engine = create_engine(SYNC_TEST_DATABASE_URL)
@@ -164,13 +164,13 @@ def db_sync():
     session.close()
     Base.metadata.drop_all(sync_engine)
 
+
 @pytest.fixture
 def test_user_sync(db_sync):
     """Sync version of test_user for worker tests."""
-    from app.models.models import User
     user = User(
-        username="testuser",
-        email="test@test.com",
+        username="testuser_sync",
+        email="testsync@test.com",
         hashed_password=hash_password("password123"),
         date_of_birth=DEFAULT_DOB,
         is_active=True,
@@ -180,10 +180,28 @@ def test_user_sync(db_sync):
     db_sync.refresh(user)
     return user
 
+
+@pytest.fixture
+def test_user_sync_2(db_sync):
+    """A second sync user for multi-user worker tests."""
+    user = User(
+        username="testuser_sync_2",
+        email="testsync2@test.com",
+        hashed_password=hash_password("password123"),
+        date_of_birth=DEFAULT_DOB,
+        is_active=True,
+    )
+    db_sync.add(user)
+    db_sync.commit()
+    db_sync.refresh(user)
+    return user
+
+
 @pytest.fixture
 def test_message_sync(db_sync, test_user_sync):
-    """Seeds a Chat and Message for worker tests. Pass deleted_at to control retention."""
-    def _factory(deleted_at=None):
+    """Seeds a Chat and Message. Pass deleted_at to control retention behavior."""
+    def _factory(deleted_at=None, user=None):
+        owner = user or test_user_sync
         chat = Chat(is_group=False)
         db_sync.add(chat)
         db_sync.commit()
@@ -191,7 +209,7 @@ def test_message_sync(db_sync, test_user_sync):
 
         message = Message(
             chat_id=chat.id,
-            sender_id=test_user_sync.id,
+            sender_id=owner.id,
             body="test message body",
             deleted_at=deleted_at,
         )
@@ -202,18 +220,24 @@ def test_message_sync(db_sync, test_user_sync):
 
     return _factory
 
+
 @pytest.fixture
 def test_photo_sync(db_sync, test_user_sync):
-    """Seeds a User photo for worker tests."""
-    photo_id = uuid.uuid4()
+    """Seeds a UserPhoto. Pass user= to override owner, or kwargs to customize fields."""
+    def _factory(user=None, **kwargs):
+        owner = user or test_user_sync
+        photo_id = uuid.uuid4()
+        photo = UserPhoto(
+            id=photo_id,
+            user_id=owner.id,
+            s3_key=f"photos/{owner.id}/{photo_id}.webp",
+            moderation_status=ModerationStatus.PENDING,
+            display_order=1,
+            **kwargs,
+        )
+        db_sync.add(photo)
+        db_sync.commit()
+        db_sync.refresh(photo)
+        return photo
 
-    user_photo = UserPhoto(
-        id=photo_id,
-        user_id=test_user_sync.id,
-        s3_key=f'photos/{test_user_sync.id}/{photo_id}.webp',
-        display_order=1,
-    )
-    db_sync.add(user_photo)
-    db_sync.commit()
-    db_sync.refresh(user_photo)
-    return user_photo
+    return _factory

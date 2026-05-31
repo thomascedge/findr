@@ -77,8 +77,9 @@ def test_purge_old_messages_logs_count(db_sync, test_message_sync, caplog):
 
 def test_moderate_photo_success(db_sync, test_photo_sync):
     """On success, writes tags and sets moderation_status to COMPLETE."""
-    photo_id = test_photo_sync.id
-    s3_key = test_photo_sync.s3_key
+    photo = test_photo_sync()
+    photo_id = photo.id
+    s3_key = photo.s3_key
 
     test_response = {
         "ModerationLabels": [
@@ -100,8 +101,9 @@ def test_moderate_photo_success(db_sync, test_photo_sync):
 
 def test_moderate_photo_no_labels(db_sync, test_photo_sync):
     """A clean photo with no labels still sets status to COMPLETE."""
-    photo_id = test_photo_sync.id
-    s3_key = test_photo_sync.s3_key
+    photo = test_photo_sync()
+    photo_id = photo.id
+    s3_key = photo.s3_key
 
     test_response = {
         "ModerationLabels": []
@@ -120,8 +122,9 @@ def test_moderate_photo_no_labels(db_sync, test_photo_sync):
 
 def test_moderate_photo_sets_failed_after_max_retries(db_sync, test_photo_sync):
     """After max retries exhausted, sets moderation_status to FAILED."""
-    photo_id = test_photo_sync.id
-    s3_key = test_photo_sync.s3_key
+    photo = test_photo_sync()
+    photo_id = photo.id
+    s3_key = photo.s3_key
 
     with _mock_reckognition() as mock_rek, \
          _mock_moderation(db_sync), \
@@ -141,8 +144,9 @@ def test_moderate_photo_sets_failed_after_max_retries(db_sync, test_photo_sync):
 
 def test_moderate_photo_retries_on_failure(db_sync, test_photo_sync):
     """Retries the task when Rekognition raises an exception."""
-    photo_id = test_photo_sync.id
-    s3_key = test_photo_sync.s3_key
+    photo = test_photo_sync()
+    photo_id = photo.id
+    s3_key = photo.s3_key
 
     with _mock_reckognition() as mock_rek, _mock_moderation(db_sync), _mock_application_retries("celery", 1):
         mock_rek.detect_moderation_labels.side_effect = Exception("Rekognition unavailable")
@@ -158,8 +162,9 @@ def test_moderate_photo_retries_on_failure(db_sync, test_photo_sync):
 
 def test_moderate_photo_tags_written_before_status_update(db_sync, test_photo_sync):
     """Tags are committed before moderation_status is updated to COMPLETE."""
-    photo_id = test_photo_sync.id
-    s3_key = test_photo_sync.s3_key
+    photo = test_photo_sync()
+    photo_id = photo.id
+    s3_key = photo.s3_key
 
     test_response = {
         "ModerationLabels": [
