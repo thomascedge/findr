@@ -11,6 +11,7 @@ async def test_register_success(client: AsyncClient):
         "username": "newuser",
         "email": "new@test.com",
         "password": "password123",
+        "date_of_birth": "1990-01-01T00:00:00Z",
     })
     assert response.status_code == 201
     assert response.json()["username"] == "newuser"
@@ -23,6 +24,7 @@ async def test_register_duplicate_username(client: AsyncClient, test_user):
         "username": "testuser",
         "email": "different@test.com",
         "password": "password123",
+        "date_of_birth": "1990-01-01T00:00:00Z",
     })
     assert response.status_code == 409
 
@@ -34,6 +36,7 @@ async def test_register_duplicate_email(client: AsyncClient, test_user):
         "username": "differentuser",
         "email": "test@test.com",
         "password": "password123",
+        "date_of_birth": "1990-01-01T00:00:00Z",
     })
     assert response.status_code == 409
 

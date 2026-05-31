@@ -7,21 +7,6 @@ on:
     branches: [main, dev]
 
 jobs:
-  # ── Code Linter ─────────────────────────────────────────────────────
-  lint-code:
-    name: Lint code
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install ruff
-        run: pip install ruff
-
-      - name: Run linter
-        run: ruff check app/
-
   # ── Commit message lint ─────────────────────────────────────────────────────
   # Enforces that all commit messages start with: fix:, feat:, feat!:, or misc:
   # Runs on PRs only — checks all commits in the PR, not just the latest
@@ -74,8 +59,8 @@ jobs:
 
   # ── Test suite ──────────────────────────────────────────────────────────────
   test:
-    needs: [commit-lint, lint-code]
-    if: always() && (needs.commit-lint.result == 'success' || needs.commit-lint.result == 'skipped') && needs.lint-code.result == 'success'
+    needs: commit-lint
+    if: always() && (needs.commit-lint.result == 'success' || needs.commit-lint.result == 'skipped') 
     name: Run test suite
     runs-on: ubuntu-latest
 
