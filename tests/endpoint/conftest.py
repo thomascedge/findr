@@ -13,6 +13,7 @@ from app.main import app
 from app.db import Base, get_db
 from app.core.security import hash_password
 from app.models.models import User, Chat, Message, UserPhoto, ModerationStatus
+from unittest.mock import patch
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
@@ -138,6 +139,13 @@ async def test_photo(db: AsyncSession, test_user: User):
         await db.refresh(user_photo)
         return user_photo
     return _factory
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def mock_ses():
+    """Mock SES so no real email calls are made in endpoint tests."""
+    with patch("app.core.email.ses_client") as mock:
+        yield mock
 
 
 # ── Sync DB fixture for worker tests ──────────────────────────────────────────
