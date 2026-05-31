@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  # ── Commit message lint ─────────────────────────────────────────────────────
+  # Enforces that all commit messages start with: fix:, feat:, feat!:, or misc:
+  # Runs on PRs only — checks all commits in the PR, not just the latest
+  commit-lint:
+    name: Lint commit messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history needed to check all commits in the PR
+
+      - name: Check commit message format
+        run: |
+          # Get all commit SHAs in this PR
+          commits=$(git log origin/${{ github.base_ref }}..HEAD --format="%H %s")
+
+          failed=0
+          while IFS= read -r line; do
+            sha=$(echo "$line" | cut -d' ' -f1)
+            msg=$(echo "$line" | cut -d' ' -f2-)
+
+            # Skip merge commits and version bump commits from CI
+            if echo "$msg" | grep -qE "^(Merge |chore: bump version)"; then
+              continue
+            fi
+
+            # Enforce prefix: fix:, feat:, feat!:, or misc:
+            if ! echo "$msg" | grep -qE "^(fix|feat|feat!|misc):"; then
+              echo "❌ Invalid commit message: '$msg' ($sha)"
+              echo "   Must start with: fix:, feat:, feat!:, or misc:"
+              failed=1
+            else
+              echo "✅ $msg"
+            fi
+          done <<< "$commits"
+
+          if [ $failed -eq 1 ]; then
+            echo ""
+            echo "Fix your commit messages before merging."
+            echo "Examples:"
+            echo "  fix: correct age calculation off-by-one"
+            echo "  feat: add email verification endpoint"
+            echo "  feat!: rename /auth/token to /auth/login"
+            echo "  misc: update README"
+            exit 1
+          fi
+
+  # ── Test suite ──────────────────────────────────────────────────────────────
+  test:
+    needs: commit-lint
+    if: always() && (needs.commit-lint.result == 'success' || needs.commit-lint.result == 'skipped')
+    name: Run test suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file from GitHub Secrets
+        run: |
+          cat > .env << EOF
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          SYNC_DATABASE_URL=${{ secrets.SYNC_DATABASE_URL }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          S3_BUCKET=${{ secrets.S3_BUCKET }}
+          LOCALSTACK_URL=${{ secrets.LOCALSTACK_URL }}
+          SENDER_EMAIL=${{ secrets.SENDER_EMAIL }}
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          EOF
+
+      - name: Start Docker Compose stack
+        run: docker compose up -d --build
+
+      - name: Wait for services to be healthy
+        run: |
+          timeout 60 bash -c '
+            until docker compose exec -T app curl -sf http://localhost:8000/health; do
+              echo "Waiting for app..."
+              sleep 3
+            done
+          '
+
+      - name: Run migrations
+        run: docker compose exec -T app alembic upgrade head
+
+      - name: Run endpoint tests
+        run: docker compose exec -T app pytest tests/endpoint/ -v --tb=short
+
+      - name: Run integration tests
+        run: docker compose exec -T app pytest tests/integration/ -v --tb=short
+
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
+
+  # ── Release versioning ──────────────────────────────────────────────────────
+  release:
+    name: Create release
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version
+        id: version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          major_string_token: "BREAKING CHANGE,feat!"
+          minor_string_token: "feat"
+          patch_string_token: "fix,perf,refactor"
+          dry_run: true
+
+      - name: Write version to VERSION file
+        run: echo "${{ steps.version.outputs.new_tag }}" > VERSION
+
+      - name: Commit VERSION file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} [skip ci]"
+          git push
+
+      - name: Create Git tag and GitHub Release
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          major_string_token: "BREAKING CHANGE,feat!"
+          minor_string_token: "feat"
+          patch_string_token: "fix,perf,refactor"
+          create_annotated_tag: true

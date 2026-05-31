@@ -51,7 +51,7 @@ def moderate_photo(self, photo_id: str, s3_key: str):
 
             photo_moderation_tag_data = {
                 "id": uuid.uuid4(),
-                "photo_id": photo_id,
+                "photo_id": uuid.UUID(photo_id),
                 "category": category,
                 "confidence": confidence,
                 "created_at": utcnow()
@@ -60,7 +60,7 @@ def moderate_photo(self, photo_id: str, s3_key: str):
             db.add(new_tag)
         db.commit()
 
-        result = db.execute(select(UserPhoto).where(UserPhoto.id == photo_id))
+        result = db.execute(select(UserPhoto).where(UserPhoto.id == uuid.UUID(photo_id)))
         photo = result.scalar_one_or_none()
         photo.moderation_status = ModerationStatus.COMPLETE
         db.commit()
@@ -71,7 +71,7 @@ def moderate_photo(self, photo_id: str, s3_key: str):
     except Exception as e:
         LOG.error(f"Photo moderation failed with exception: {e}")
         if self.request.retries >= self.max_retries:
-            photo = db.execute(select(UserPhoto).where(UserPhoto.id == photo_id)).scalar_one_or_none()
+            photo = db.execute(select(UserPhoto).where(UserPhoto.id == uuid.UUID(photo_id))).scalar_one_or_none()
             if photo:
                 photo.moderation_status = ModerationStatus.FAILED
                 db.commit()

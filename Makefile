@@ -73,3 +73,26 @@ beat-logs:
 # Manually trigger the retention task without waiting for 2am
 trigger-retention:
 	docker compose exec app python -c "from app.workers.retention import purge_old_messages; purge_old_messages.delay()"
+
+# ── Seeding ──────────────────────────────────────────────────────────────────
+ 
+# Seed the database with realistic Austin test data
+# Usage: make seed
+# Usage: make seed users=50
+seed:
+	docker compose exec app python scripts/seed.py --users $(or $(users),25)
+ 
+# Wipe and reseed from scratch
+reseed:
+	make reset
+	sleep 3
+	make seed
+ 
+ # ── Git ───────────────────────────────────────────────────────────────────────
+ 
+# Validate your commit message locally before pushing
+# Usage: make commit msg="feat: add email verification"
+commit-lint:
+	@echo "$(msg)" | grep -qE "^(fix|feat|feat!|misc):" \
+		&& echo "✅ Valid commit message" \
+		|| (echo "❌ Invalid: must start with fix:, feat:, feat!:, or misc:" && exit 1)

@@ -13,6 +13,12 @@ s3_client = boto3.client(
     region_name=AWS_REGION
 )
 
+ses_client = boto3.client(
+    'ses',
+    endpoint_url=LOCALSTACK_URL or None,
+    region_name=AWS_REGION
+)
+
 def upload_photo(file_bytes: bytes, s3_key: str) -> str:
     """Uploads a photo to S3 and returns the s3_key."""
     s3_client.put_object(
@@ -36,3 +42,4 @@ def get_photo_url(s3_key: str) -> str:
     )
 
     return response
+    

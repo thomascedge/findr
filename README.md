@@ -164,3 +164,8 @@ findr/
 ├── requirements.txt
 └── ROADMAP.md
 ```
+
+## Versioning Notes
+fix: correct haversine query          → bumps PATCH (0.0.1 → 0.0.2)
+feat: add email verification          → bumps MINOR (0.1.0 → 0.2.0)
+feat!: breaking change to auth flow   → bumps MAJOR (0.1.0 → 1.0.0)

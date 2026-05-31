@@ -1,6 +1,7 @@
 import os
 import logging
-
+import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.workers.celery_app import celery
@@ -17,12 +18,13 @@ def purge_old_messages():
     db = SessionLocal()
 
     try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=90)
         result = db.execute(
             text("""
                     DELETE FROM messages
                     WHERE deleted_at IS NOT NULL
-                    AND deleted_at < NOW() - INTERVAL '90 days'
-                """))
+                    AND deleted_at < :cutoff
+                """), {"cutoff": cutoff})
         db.commit()
         LOG.info(f'{result.rowcount} records deleted from messages table.')
 

@@ -8,12 +8,21 @@ celery.autodiscover_tasks(['app.workers'])
 celery.conf.update(
     worker_hijack_root_logger=False,
     broker_connection_retry_on_startup=True,
-    include=["app.workers.retention", "app.workers.moderation"],
+    include=[
+        "app.workers.retention",
+        "app.workers.moderation",
+        "app.workers.hard_delete",
+    ],
     timezone="UTC",
     beat_schedule={
         "retention.purge_old_messages": {
             "task": "app.workers.retention.purge_old_messages",
             "schedule": crontab(hour=2, minute=0),
+        },
+
+        "hard_delete.hard_delete_users": {
+            "task": "app.workers.hard_delete.hard_delete_users",
+            "schedule": crontab(hour=3, minute=0),
         },
 
         # v2 — US scale
