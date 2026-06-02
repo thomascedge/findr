@@ -57,7 +57,11 @@ async def report_user(
     
     if payload.reported_id == current_user.id:
         raise HTTPException(status_code=400, detail="User cannot report themself.")
-    
+
+    reported_user = await db.get(User, payload.reported_id)
+    if not reported_user:
+        raise HTTPException(status_code=404, detail="Reported user not found.")
+
     user_report = UserReport(
         reporter_id = current_user.id,
         reported_id = payload.reported_id,
@@ -65,7 +69,7 @@ async def report_user(
         details=payload.details
     )
 
-    await db.add(user_report)
+    db.add(user_report)
     await db.commit()
     await db.refresh(user_report)
     return user_report
@@ -121,4 +125,3 @@ async def delete_account(
     current_user.is_active = False
     current_user.deactivated_at = utcnow()
     await db.commit()
-
