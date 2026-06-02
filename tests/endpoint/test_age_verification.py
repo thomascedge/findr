@@ -12,13 +12,11 @@ from app.models.models import utcnow
 
 def _dob(years_ago: int) -> str:
     """Returns an ISO datetime string for a date N years ago."""
-    # Hint: subtract timedelta(days=years_ago * 365) from utcnow
     return (utcnow() - timedelta(days=years_ago * 365)).isoformat()
 
 
 def _reg_payload(username: str, years_ago: int) -> dict:
     """Returns a valid registration payload with the given age."""
-    # Hint: include username, email, password, and date_of_birth
     return {
         "username": username,
         "email": "username@test.com",
@@ -30,8 +28,6 @@ def _reg_payload(username: str, years_ago: int) -> dict:
 @pytest.mark.asyncio
 async def test_register_18_succeeds(client: AsyncClient):
     """A user who is exactly 18 can register."""
-    # POST /api/v1/auth/register with date_of_birth = 18 years ago
-    # Assert 201
     response = await client.post(
         "/api/v1/auth/register", json=_reg_payload("user18", 18)
     )
@@ -41,8 +37,6 @@ async def test_register_18_succeeds(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_over_18_succeeds(client: AsyncClient):
     """A user who is 25 can register."""
-    # POST /api/v1/auth/register with date_of_birth = 25 years ago
-    # Assert 201
     response = await client.post(
         "/api/v1/auth/register", json=_reg_payload("user31", 31)
     )
@@ -52,9 +46,6 @@ async def test_register_over_18_succeeds(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_17_blocked(client: AsyncClient):
     """A user who is 17 cannot register."""
-    # POST /api/v1/auth/register with date_of_birth = 17 years ago
-    # Assert 400
-    # Assert "18" appears in the error detail
     response = await client.post(
         "/api/v1/auth/register", json=_reg_payload("user17", 17)
     )
@@ -76,8 +67,6 @@ async def test_register_under_13_blocked(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_missing_dob(client: AsyncClient):
     """Registration without date_of_birth returns 422."""
-    # POST /api/v1/auth/register without date_of_birth field
-    # Assert 422
     response = await client.post(
         "/api/v1/auth/register",
         json={
@@ -92,8 +81,6 @@ async def test_register_missing_dob(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_future_dob(client: AsyncClient):
     """Registration with a future date of birth returns 400."""
-    # POST /api/v1/auth/register with date_of_birth = tomorrow
-    # Assert 400
     response = await client.post(
         "/api/v1/auth/register",
         json={

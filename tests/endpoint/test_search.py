@@ -42,8 +42,6 @@ async def test_search_excludes_current_user(
     client: AsyncClient, auth_headers: dict, test_user: User
 ):
     """Current user never appears in their own search results."""
-    # GET /api/v1/search/users?q={test_user.username}
-    # Assert test_user.id does not appear in results
     response = await client.get(
         f"/api/v1/search/users?q={test_user.username}", headers=auth_headers
     )
@@ -57,9 +55,6 @@ async def test_search_excludes_inactive_users(
     client: AsyncClient, auth_headers: dict, test_user_2: User, db: AsyncSession
 ):
     """Deactivated users do not appear in search results."""
-    # Set test_user_2.is_active = False and commit
-    # GET /api/v1/search/users?q={test_user_2.username}
-    # Assert test_user_2 does not appear
     test_user_2.is_active = False
     await db.commit()
     await db.refresh(test_user_2)
@@ -75,8 +70,6 @@ async def test_search_excludes_inactive_users(
 @pytest.mark.asyncio
 async def test_search_no_match_returns_empty(client: AsyncClient, auth_headers: dict):
     """A query with no matching users returns an empty list."""
-    # GET /api/v1/search/users?q=zzznomatch999
-    # Assert 200 and empty list
     response = await client.get(
         "/api/v1/search/users?q=zzznomatch999", headers=auth_headers
     )
@@ -87,8 +80,6 @@ async def test_search_no_match_returns_empty(client: AsyncClient, auth_headers: 
 @pytest.mark.asyncio
 async def test_search_requires_auth(client: AsyncClient):
     """Search without a token returns 401."""
-    # GET /api/v1/search/users with no headers
-    # Assert 401
     response = await client.get(
         "/api/v1/search/users",
     )
