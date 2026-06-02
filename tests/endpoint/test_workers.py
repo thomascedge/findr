@@ -1,11 +1,8 @@
-import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
-from sqlalchemy.orm import Session
+from unittest.mock import patch, PropertyMock
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch
 
 from tests import logging
-from app.models.models import Chat, Message, UserPhoto, PhotoModerationTag, ModerationStatus
+from app.models.models import Message, UserPhoto, PhotoModerationTag, ModerationStatus
 from app.workers.retention import purge_old_messages
 from app.workers.moderation import moderate_photo
 
@@ -14,15 +11,22 @@ from app.workers.moderation import moderate_photo
 def _mock_reckognition():
     return patch("app.workers.moderation.rekognition")
 
+
 def _mock_retention(db):
     return patch("app.workers.retention.SessionLocal", return_value=db)
+
 
 def _mock_moderation(db):
     return patch("app.workers.moderation.SessionLocal", return_value=db)
 
+
 def _mock_application_retries(application_name: str, max_retries=3):
     if application_name.lower() == "celery":
-        return patch("celery.app.task.Context.retries", new_callable=PropertyMock, return_value=max_retries)
+        return patch(
+            "celery.app.task.Context.retries",
+            new_callable=PropertyMock,
+            return_value=max_retries,
+        )
     if application_name.lower() == "moderation":
         return patch("app.workers.moderation.moderate_photo.max_retries", max_retries)
 
@@ -75,6 +79,7 @@ def test_purge_old_messages_logs_count(db_sync, test_message_sync, caplog):
 
 # ── Moderation task ───────────────────────────────────────────────────────────
 
+
 def test_moderate_photo_success(db_sync, test_photo_sync):
     """On success, writes tags and sets moderation_status to COMPLETE."""
     photo = test_photo_sync()
@@ -84,7 +89,7 @@ def test_moderate_photo_success(db_sync, test_photo_sync):
     test_response = {
         "ModerationLabels": [
             {"Name": "Explicit Nudity", "Confidence": 92.5},
-            {"Name": "Suggestive", "Confidence": 67.3}
+            {"Name": "Suggestive", "Confidence": 67.3},
         ]
     }
 
@@ -94,7 +99,7 @@ def test_moderate_photo_success(db_sync, test_photo_sync):
 
     photo = db_sync.get(UserPhoto, photo_id)
     assert photo.moderation_status == ModerationStatus.COMPLETE
-    
+
     tags = db_sync.query(PhotoModerationTag).filter_by(photo_id=photo_id).all()
     assert len(tags) == 2
 
@@ -105,9 +110,7 @@ def test_moderate_photo_no_labels(db_sync, test_photo_sync):
     photo_id = photo.id
     s3_key = photo.s3_key
 
-    test_response = {
-        "ModerationLabels": []
-    }
+    test_response = {"ModerationLabels": []}
 
     with _mock_reckognition() as mock_rek, _mock_moderation(db_sync):
         mock_rek.detect_moderation_labels.return_value = test_response
@@ -115,7 +118,7 @@ def test_moderate_photo_no_labels(db_sync, test_photo_sync):
 
     photo = db_sync.get(UserPhoto, photo_id)
     assert photo.moderation_status == ModerationStatus.COMPLETE
-    
+
     tags = db_sync.query(PhotoModerationTag).filter_by(photo_id=photo_id).all()
     assert len(tags) == 0
 
@@ -126,12 +129,13 @@ def test_moderate_photo_sets_failed_after_max_retries(db_sync, test_photo_sync):
     photo_id = photo.id
     s3_key = photo.s3_key
 
-    with _mock_reckognition() as mock_rek, \
-         _mock_moderation(db_sync), \
-         _mock_application_retries("moderation"), \
-         _mock_application_retries("celery", 3):        
-        
-        mock_rek.detect_moderation_labels.side_effect = Exception("Rekognition unavailable")
+    with _mock_reckognition() as mock_rek, _mock_moderation(
+        db_sync
+    ), _mock_application_retries("moderation"), _mock_application_retries("celery", 3):
+
+        mock_rek.detect_moderation_labels.side_effect = Exception(
+            "Rekognition unavailable"
+        )
 
         try:
             moderate_photo(str(photo_id), s3_key)
@@ -148,8 +152,12 @@ def test_moderate_photo_retries_on_failure(db_sync, test_photo_sync):
     photo_id = photo.id
     s3_key = photo.s3_key
 
-    with _mock_reckognition() as mock_rek, _mock_moderation(db_sync), _mock_application_retries("celery", 1):
-        mock_rek.detect_moderation_labels.side_effect = Exception("Rekognition unavailable")
+    with _mock_reckognition() as mock_rek, _mock_moderation(
+        db_sync
+    ), _mock_application_retries("celery", 1):
+        mock_rek.detect_moderation_labels.side_effect = Exception(
+            "Rekognition unavailable"
+        )
 
         try:
             moderate_photo(str(photo_id), s3_key)
@@ -170,16 +178,16 @@ def test_moderate_photo_tags_written_before_status_update(db_sync, test_photo_sy
         "ModerationLabels": [
             {"Name": "Explicit Nudity", "Confidence": 92.5},
             {"Name": "Suggestive", "Confidence": 67.3},
-            {"Name": "Violence", "Confidence": 54.3}
+            {"Name": "Violence", "Confidence": 54.3},
         ]
     }
 
     with _mock_reckognition() as mock_rek, _mock_moderation(db_sync):
         mock_rek.detect_moderation_labels.return_value = test_response
         moderate_photo(str(photo_id), s3_key)
-    
+
     photo = db_sync.get(UserPhoto, photo_id)
     assert photo.moderation_status == ModerationStatus.COMPLETE
-    
+
     tags = db_sync.query(PhotoModerationTag).filter_by(photo_id=photo_id).all()
     assert len(tags) == 3

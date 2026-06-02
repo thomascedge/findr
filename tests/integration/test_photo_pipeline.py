@@ -1,12 +1,10 @@
-import io
 import pytest
-from PIL import Image
 from starlette.testclient import TestClient
 
 from app.main import app
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _fake_image_bytes() -> bytes:
     """Returns minimal valid JPEG bytes for upload testing."""
@@ -18,6 +16,7 @@ def _token(headers: dict) -> str:
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def client():
@@ -37,6 +36,7 @@ def auth_headers(client):
 
 
 # ── Upload pipeline ───────────────────────────────────────────────────────────
+
 
 def test_photo_upload_stored_in_s3(client, auth_headers):
     """Uploaded photo is stored in LocalStack S3 as a WebP file."""

@@ -29,16 +29,22 @@ def client():
 @pytest.fixture(scope="module")
 def auth_headers(client):
     """Register and log in a fresh user for each test module."""
-    client.post("/api/v1/auth/register", json={
-        "username": "integration_user",
-        "email": "integration@test.com",
-        "password": "password123",
-        "date_of_birth": DEFAULT_DOB,
-    })
-    response = client.post("/api/v1/auth/token", data={
-        "username": "integration_user",
-        "password": "password123",
-    })
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "integration_user",
+            "email": "integration@test.com",
+            "password": "password123",
+            "date_of_birth": DEFAULT_DOB,
+        },
+    )
+    response = client.post(
+        "/api/v1/auth/token",
+        data={
+            "username": "integration_user",
+            "password": "password123",
+        },
+    )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -46,15 +52,21 @@ def auth_headers(client):
 @pytest.fixture(scope="module")
 def auth_headers_2(client):
     """A second user for multi-user WebSocket tests."""
-    client.post("/api/v1/auth/register", json={
-        "username": "integration_user_2",
-        "email": "integration2@test.com",
-        "password": "password123",
-        "date_of_birth": DEFAULT_DOB,
-    })
-    response = client.post("/api/v1/auth/token", data={
-        "username": "integration_user_2",
-        "password": "password123",
-    })
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "integration_user_2",
+            "email": "integration2@test.com",
+            "password": "password123",
+            "date_of_birth": DEFAULT_DOB,
+        },
+    )
+    response = client.post(
+        "/api/v1/auth/token",
+        data={
+            "username": "integration_user_2",
+            "password": "password123",
+        },
+    )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

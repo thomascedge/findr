@@ -47,7 +47,8 @@ def hard_delete_users():
         user_ids = [str(row[0]) for row in result.fetchall()]
 
         for id in user_ids:
-            db.execute(text("""
+            db.execute(
+                text("""
                 UPDATE users
                 SET 
                     username = 'deleted_' || id::text,
@@ -57,8 +58,10 @@ def hard_delete_users():
                     email_verification_token = NULL,
                     password_reset_token = NULL
                 WHERE id = :user_id::uuid
-            """), {"user_id": id})
-            
+            """),
+                {"user_id": id},
+            )
+
         result = db.execute(text("""
             DELETE FROM token_blacklist WHERE expires_at < NOW()
         """))

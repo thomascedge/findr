@@ -17,15 +17,20 @@ def _haversine_miles(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     R = 3958.8  # Earth radius in miles
     d_lat = math.radians(lat2 - lat1)
     d_lng = math.radians(lng2 - lng1)
-    a = (math.sin(d_lat / 2) ** 2 +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
-         math.sin(d_lng / 2) ** 2)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lng / 2) ** 2
+    )
     return R * 2 * math.asin(math.sqrt(a))
 
 
 @router.get("/users", response_model=list[UserSearchResult])
 async def search_users(
-    q: Optional[str] = Query(default=None, description="Username or bio keyword search"),
+    q: Optional[str] = Query(
+        default=None, description="Username or bio keyword search"
+    ),
     lat: Optional[float] = None,
     lng: Optional[float] = None,
     radius_miles: float = 5.0,

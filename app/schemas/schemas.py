@@ -3,8 +3,8 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
-
 # ── Auth ──────────────────────────────────────────────────────────────────────
+
 
 class UserRegister(BaseModel):
     username: str = Field(min_length=3, max_length=32)
@@ -50,6 +50,7 @@ class OnboardingStatus(BaseModel):
 
 # ── User ──────────────────────────────────────────────────────────────────────
 
+
 class UserPublic(BaseModel):
     id: UUID
     username: str
@@ -63,6 +64,7 @@ class UserUpdate(BaseModel):
 
 
 # ── Location ──────────────────────────────────────────────────────────────────
+
 
 class LocationUpdate(BaseModel):
     lat: float = Field(ge=-90, le=90)
@@ -80,6 +82,7 @@ class NearbyUser(BaseModel):
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
 
+
 class ChatOut(BaseModel):
     id: UUID
     is_group: bool
@@ -88,6 +91,7 @@ class ChatOut(BaseModel):
 
 
 # ── Messages ──────────────────────────────────────────────────────────────────
+
 
 class MessageSend(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
@@ -116,12 +120,14 @@ class MessageEdit(BaseModel):
 
 # ── Password ──────────────────────────────────────────────────────────────────
 
+
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8, max_length=72)
 
 
 # ── Legal ─────────────────────────────────────────────────────────────────────
+
 
 class UserReportCreate(BaseModel):
     reported_id: UUID
@@ -146,6 +152,7 @@ class AcceptTermsRequest(BaseModel):
 
 
 # ── Search ────────────────────────────────────────────────────────────────────
+
 
 class UserSearchResult(BaseModel):
     id: UUID

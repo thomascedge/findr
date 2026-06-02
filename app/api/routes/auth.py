@@ -9,14 +9,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.schemas.schemas import (
-    UserRegister, UserPublic, TokenResponse, PasswordChange,
-    ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest,
+    UserRegister,
+    UserPublic,
+    TokenResponse,
+    PasswordChange,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    VerifyEmailRequest,
     OnboardingStatus,
 )
 from app.models.models import User, TokenBlacklist, UserPhoto, UserLocation, utcnow
 from app.core.security import (
-    hash_password, verify_password, create_token,
-    get_current_user, decode_token, oauth2_scheme,
+    hash_password,
+    verify_password,
+    create_token,
+    get_current_user,
+    decode_token,
+    oauth2_scheme,
 )
 from app.core.email import send_verification_email, send_password_reset_email
 
@@ -39,12 +48,18 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
     Generates an email verification token — email_verified_at starts as null.
     """
     if payload.date_of_birth >= datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Date of birth cannot be in the future.")
+        raise HTTPException(
+            status_code=400, detail="Date of birth cannot be in the future."
+        )
 
     if _calculate_age(payload.date_of_birth) < 18:
         raise HTTPException(status_code=400, detail="Must be 18 or older to register.")
 
-    result = await db.execute(select(User).where((User.username == payload.username) | (User.email == payload.email)))
+    result = await db.execute(
+        select(User).where(
+            (User.username == payload.username) | (User.email == payload.email)
+        )
+    )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="User already exists.")
 
@@ -68,7 +83,9 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/token", response_model=TokenResponse)
-async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(
+    form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+):
     """Login and return a JWT. Inactive users are rejected."""
     result = await db.execute(select(User).where(User.username == form.username))
     user = result.scalar_one_or_none()
@@ -101,6 +118,7 @@ async def logout(
     db.add(token_blacklist)
     await db.commit()
 
+
 @router.post("/verify-email")
 async def verify_email(payload: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
     """
@@ -112,7 +130,9 @@ async def verify_email(payload: VerifyEmailRequest, db: AsyncSession = Depends(g
     )
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired verification token."
+        )
 
     user.email_verified_at = utcnow()
     user.email_verification_token = None
@@ -138,7 +158,9 @@ async def resend_verification(
 
 
 @router.post("/forgot-password")
-async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+async def forgot_password(
+    payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
+):
     """
     Generate a password reset token and queue a reset email.
     Always returns 200 regardless of whether the email exists — prevents user enumeration.
@@ -158,7 +180,9 @@ async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Dep
 
 
 @router.post("/reset-password")
-async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+async def reset_password(
+    payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
+):
     """Consume a password reset token and set a new password."""
     result = await db.execute(
         select(User).where(User.password_reset_token == payload.token)
@@ -227,7 +251,7 @@ async def get_onboarding_status(
     result = await db.execute(
         select(UserPhoto).where(
             UserPhoto.user_id == current_user.id,
-            UserPhoto.deleted_at == None,
+            UserPhoto.deleted_at is None,
         )
     )
     user_photo = result.scalar_one_or_none()
@@ -244,7 +268,9 @@ async def get_onboarding_status(
     location_consent = user.location_consent_at is not None
     has_photo = user_photo is not None
     has_location = user_location is not None
-    onboarding_complete = all([email_verified, terms_accepted, location_consent, has_photo, has_location])
+    onboarding_complete = all(
+        [email_verified, terms_accepted, location_consent, has_photo, has_location]
+    )
 
     if onboarding_complete and not user.onboarding_completed_at:
         user.onboarding_completed_at = utcnow()

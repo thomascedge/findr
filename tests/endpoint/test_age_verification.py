@@ -3,36 +3,33 @@ Tests for age verification on registration (COPPA compliance).
 All tests use the register endpoint — add date_of_birth to UserRegister
 and implement the age check in auth.py before running these.
 """
+
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 from httpx import AsyncClient
-from app.schemas.schemas import UserRegister
 from app.models.models import utcnow
 
 
 def _dob(years_ago: int) -> str:
     """Returns an ISO datetime string for a date N years ago."""
-    # Hint: subtract timedelta(days=years_ago * 365) from utcnow
     return (utcnow() - timedelta(days=years_ago * 365)).isoformat()
 
 
 def _reg_payload(username: str, years_ago: int) -> dict:
     """Returns a valid registration payload with the given age."""
-    # Hint: include username, email, password, and date_of_birth
-    return {'username': username, 
-            'email': f'username@test.com',
-            'password': "password123",
-            'date_of_birth': _dob(years_ago)}
+    return {
+        "username": username,
+        "email": "username@test.com",
+        "password": "password123",
+        "date_of_birth": _dob(years_ago),
+    }
 
 
 @pytest.mark.asyncio
 async def test_register_18_succeeds(client: AsyncClient):
     """A user who is exactly 18 can register."""
-    # POST /api/v1/auth/register with date_of_birth = 18 years ago
-    # Assert 201
     response = await client.post(
-        "/api/v1/auth/register",
-        json=_reg_payload('user18', 18)
+        "/api/v1/auth/register", json=_reg_payload("user18", 18)
     )
     assert response.status_code == 201
 
@@ -40,11 +37,8 @@ async def test_register_18_succeeds(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_over_18_succeeds(client: AsyncClient):
     """A user who is 25 can register."""
-    # POST /api/v1/auth/register with date_of_birth = 25 years ago
-    # Assert 201
     response = await client.post(
-        "/api/v1/auth/register",
-        json=_reg_payload('user31', 31)
+        "/api/v1/auth/register", json=_reg_payload("user31", 31)
     )
     assert response.status_code == 201
 
@@ -52,15 +46,11 @@ async def test_register_over_18_succeeds(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_17_blocked(client: AsyncClient):
     """A user who is 17 cannot register."""
-    # POST /api/v1/auth/register with date_of_birth = 17 years ago
-    # Assert 400
-    # Assert "18" appears in the error detail
     response = await client.post(
-        "/api/v1/auth/register",
-        json=_reg_payload('user17', 17)
+        "/api/v1/auth/register", json=_reg_payload("user17", 17)
     )
     assert response.status_code == 400
-    assert '18' in response.text
+    assert "18" in response.text
 
 
 @pytest.mark.asyncio
@@ -69,8 +59,7 @@ async def test_register_under_13_blocked(client: AsyncClient):
     # POST /api/v1/auth/register with date_of_birth = 12 years ago
     # Assert 400
     response = await client.post(
-        "/api/v1/auth/register",
-        json=_reg_payload('user12', 12)
+        "/api/v1/auth/register", json=_reg_payload("user12", 12)
     )
     assert response.status_code == 400
 
@@ -78,14 +67,13 @@ async def test_register_under_13_blocked(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_missing_dob(client: AsyncClient):
     """Registration without date_of_birth returns 422."""
-    # POST /api/v1/auth/register without date_of_birth field
-    # Assert 422
     response = await client.post(
         "/api/v1/auth/register",
-        json={'username': "userNone", 
-            'email': f'userNone@test.com',
-            'password': "password123"
-            }
+        json={
+            "username": "userNone",
+            "email": "userNone@test.com",
+            "password": "password123",
+        },
     )
     assert response.status_code == 422
 
@@ -93,13 +81,13 @@ async def test_register_missing_dob(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_future_dob(client: AsyncClient):
     """Registration with a future date of birth returns 400."""
-    # POST /api/v1/auth/register with date_of_birth = tomorrow
-    # Assert 400
     response = await client.post(
         "/api/v1/auth/register",
-        json={'username': "userNone", 
-            'email': f'userTomorrow@test.com',
-            'password': "password123",
-            'date_of_birth': (utcnow() + timedelta(days=1)).isoformat()}
+        json={
+            "username": "userNone",
+            "email": "userTomorrow@test.com",
+            "password": "password123",
+            "date_of_birth": (utcnow() + timedelta(days=1)).isoformat(),
+        },
     )
     assert response.status_code == 400

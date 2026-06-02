@@ -60,6 +60,13 @@ test-one:
 lint:
 	docker compose exec app ruff check app/
 
+ruff:
+	ruff check
+
+clean:
+	ruff check . --fix
+	black .
+
 # ── Celery ────────────────────────────────────────────────────────────────────
 
 # Follow worker logs
