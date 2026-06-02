@@ -7,8 +7,11 @@ from sqlalchemy import select
 from app.core.security import decode_token
 from app.core.redis import get_redis
 from app.core.presence import (
-    set_presence, remove_presence, refresh_ttl,
-    get_nearby_from_redis, get_pubsub_channel
+    set_presence,
+    remove_presence,
+    refresh_ttl,
+    get_nearby_from_redis,
+    get_pubsub_channel,
 )
 from app.core.location import compute_geohash, fuzz_coordinates
 from app.db import AsyncSessionLocal
@@ -72,7 +75,9 @@ async def map_websocket(websocket: WebSocket, token: str = Query(...)):
                     listener_task = asyncio.create_task(_listen_pubsub(new_channel))
 
                 nearby = await get_nearby_from_redis(lat, lng, geohash, user_id)
-                await websocket.send_text(json.dumps({"event": "map_snapshot", "payload": {"users": nearby}}))
+                await websocket.send_text(
+                    json.dumps({"event": "map_snapshot", "payload": {"users": nearby}})
+                )
 
             elif event == "heartbeat":
                 await refresh_ttl(user_id)

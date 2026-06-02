@@ -1,9 +1,6 @@
-from dotenv import load_dotenv
-load_dotenv()
-
+import uuid
 import pytest
 import pytest_asyncio
-import uuid
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
@@ -50,7 +47,9 @@ def mock_ses():
 async def client():
     """Async test client with DB override."""
     app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -97,10 +96,13 @@ async def test_user_2(db: AsyncSession):
 @pytest_asyncio.fixture
 async def auth_headers(client, test_user):
     """Auth headers for test_user."""
-    response = await client.post("/api/v1/auth/token", data={
-        "username": "testuser",
-        "password": "password123",
-    })
+    response = await client.post(
+        "/api/v1/auth/token",
+        data={
+            "username": "testuser",
+            "password": "password123",
+        },
+    )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -108,12 +110,16 @@ async def auth_headers(client, test_user):
 @pytest_asyncio.fixture
 async def auth_headers_2(client, test_user_2):
     """Auth headers for test_user_2."""
-    response = await client.post("/api/v1/auth/token", data={
-        "username": "testuser2",
-        "password": "password123",
-    })
+    response = await client.post(
+        "/api/v1/auth/token",
+        data={
+            "username": "testuser2",
+            "password": "password123",
+        },
+    )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
 
 @pytest_asyncio.fixture
 async def test_photo(db: AsyncSession, test_user: User):
@@ -125,6 +131,7 @@ async def test_photo(db: AsyncSession, test_user: User):
         photo = await test_photo(moderation_status=ModerationStatus.COMPLETE)
         photo = await test_photo(deleted_at=utcnow())
     """
+
     async def _factory(
         user=None,
         display_order=1,
@@ -136,7 +143,7 @@ async def test_photo(db: AsyncSession, test_user: User):
         user_photo = UserPhoto(
             id=photo_id,
             user_id=owner.id,
-            s3_key=f'photos/{owner.id}/{photo_id}.webp',
+            s3_key=f"photos/{owner.id}/{photo_id}.webp",
             display_order=display_order,
             moderation_status=moderation_status,
             deleted_at=deleted_at,
@@ -145,6 +152,7 @@ async def test_photo(db: AsyncSession, test_user: User):
         await db.commit()
         await db.refresh(user_photo)
         return user_photo
+
     return _factory
 
 
@@ -200,6 +208,7 @@ def test_user_sync_2(db_sync):
 @pytest.fixture
 def test_message_sync(db_sync, test_user_sync):
     """Seeds a Chat and Message. Pass deleted_at to control retention behavior."""
+
     def _factory(deleted_at=None, user=None):
         owner = user or test_user_sync
         chat = Chat(is_group=False)
@@ -224,6 +233,7 @@ def test_message_sync(db_sync, test_user_sync):
 @pytest.fixture
 def test_photo_sync(db_sync, test_user_sync):
     """Seeds a UserPhoto. Pass user= to override owner, or kwargs to customize fields."""
+
     def _factory(user=None, **kwargs):
         owner = user or test_user_sync
         photo_id = uuid.uuid4()

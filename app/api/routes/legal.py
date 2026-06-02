@@ -54,7 +54,7 @@ async def report_user(
 
     if not user:
         raise HTTPException(status_code=400, detail="User not found.")
-    
+
     if payload.reported_id == current_user.id:
         raise HTTPException(status_code=400, detail="User cannot report themself.")
 
@@ -63,10 +63,10 @@ async def report_user(
         raise HTTPException(status_code=404, detail="Reported user not found.")
 
     user_report = UserReport(
-        reporter_id = current_user.id,
-        reported_id = payload.reported_id,
+        reporter_id=current_user.id,
+        reported_id=payload.reported_id,
         reason=payload.reason,
-        details=payload.details
+        details=payload.details,
     )
 
     db.add(user_report)
@@ -85,13 +85,19 @@ async def export_data(
     """
     user = await db.get(User, current_user.id)
 
-    result = await db.execute(select(Message).where(Message.sender_id == current_user.id))
+    result = await db.execute(
+        select(Message).where(Message.sender_id == current_user.id)
+    )
     messages_list = result.all()
 
-    result = await db.execute(select(UserPhoto).where(UserPhoto.user_id == current_user.id))
+    result = await db.execute(
+        select(UserPhoto).where(UserPhoto.user_id == current_user.id)
+    )
     photos_list = result.all()
 
-    result = await db.execute(select(UserLocation).where(UserLocation.user_id == current_user.id))
+    result = await db.execute(
+        select(UserLocation).where(UserLocation.user_id == current_user.id)
+    )
     location = result.all()
 
     user_export_data = {
@@ -104,11 +110,11 @@ async def export_data(
             "created_at": user.created_at,
             "terms_accepted_at": user.terms_accepted_at,
             "terms_version": user.terms_version,
-            "location_consent_at": user.location_consent_at
+            "location_consent_at": user.location_consent_at,
         },
         "location": location,
         "messages": messages_list,
-        "photos": photos_list
+        "photos": photos_list,
     }
 
     return user_export_data

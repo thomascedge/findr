@@ -24,5 +24,6 @@ async def create_tables():
     # Creates all tables defined in models.py on app startup
     # Later you'll replace this with Alembic migrations
     from app.models import models  # noqa — ensures models are registered with Base
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

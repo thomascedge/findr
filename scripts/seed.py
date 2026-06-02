@@ -11,6 +11,7 @@ Usage:
     # Or with options:
     docker compose exec app python scripts/seed.py --users 100 --clear
 """
+
 import argparse
 import random
 import sys
@@ -29,16 +30,56 @@ AUSTIN_BOUNDS = {
 
 # ── Realistic seed data ───────────────────────────────────────────────────────
 USERNAMES = [
-    "austinlocal", "keepitweird", "bartonsprings", "sixthstreet", "zilker_fan",
-    "sxsw_regular", "longhorn_fan", "rainey_st", "eastaustin", "southcongress",
-    "ladybirdlake", "domainlife", "roundrock_guy", "cedar_park_tx", "pflugerville",
-    "travis_heights", "bouldin_creek", "cherrywood_tx", "mueller_austin", "crestview_atx",
-    "rosedale_tx", "tarrytown_atx", "hyde_park_atx", "clarksville_tx", "bryker_woods",
-    "pecan_springs", "govuniv_atx", "montopolis_tx", "riverside_atx", "onion_creek",
-    "slaughter_ln", "manchaca_tx", "sunset_valley", "rollingwood_tx", "westlake_hills",
-    "bee_cave_tx", "lakeway_atx", "volente_tx", "jonestown_tx", "cedar_valley",
-    "manor_tx", "elgin_adjacent", "bastrop_nearby", "kyle_tx_guy", "buda_tx",
-    "dripping_springs", "wimberley_way", "san_marcos_adj", "lockhart_bbq", "luling_fan",
+    "austinlocal",
+    "keepitweird",
+    "bartonsprings",
+    "sixthstreet",
+    "zilker_fan",
+    "sxsw_regular",
+    "longhorn_fan",
+    "rainey_st",
+    "eastaustin",
+    "southcongress",
+    "ladybirdlake",
+    "domainlife",
+    "roundrock_guy",
+    "cedar_park_tx",
+    "pflugerville",
+    "travis_heights",
+    "bouldin_creek",
+    "cherrywood_tx",
+    "mueller_austin",
+    "crestview_atx",
+    "rosedale_tx",
+    "tarrytown_atx",
+    "hyde_park_atx",
+    "clarksville_tx",
+    "bryker_woods",
+    "pecan_springs",
+    "govuniv_atx",
+    "montopolis_tx",
+    "riverside_atx",
+    "onion_creek",
+    "slaughter_ln",
+    "manchaca_tx",
+    "sunset_valley",
+    "rollingwood_tx",
+    "westlake_hills",
+    "bee_cave_tx",
+    "lakeway_atx",
+    "volente_tx",
+    "jonestown_tx",
+    "cedar_valley",
+    "manor_tx",
+    "elgin_adjacent",
+    "bastrop_nearby",
+    "kyle_tx_guy",
+    "buda_tx",
+    "dripping_springs",
+    "wimberley_way",
+    "san_marcos_adj",
+    "lockhart_bbq",
+    "luling_fan",
 ]
 
 BIOS = [
@@ -63,13 +104,31 @@ BIOS = [
 ]
 
 INTERESTS = [
-    "hiking", "cycling", "coffee", "tacos", "live_music", "yoga",
-    "photography", "cooking", "reading", "gaming", "fitness", "brunch",
-    "travel", "dogs", "plants", "art", "tech", "film", "running", "climbing",
+    "hiking",
+    "cycling",
+    "coffee",
+    "tacos",
+    "live_music",
+    "yoga",
+    "photography",
+    "cooking",
+    "reading",
+    "gaming",
+    "fitness",
+    "brunch",
+    "travel",
+    "dogs",
+    "plants",
+    "art",
+    "tech",
+    "film",
+    "running",
+    "climbing",
 ]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def random_austin_coords():
     """Returns a random lat/lng within Austin bounds."""
@@ -81,7 +140,9 @@ def random_austin_coords():
 def random_dob():
     """Returns a random date of birth for a user aged 21-40."""
     age = random.randint(21, 40)
-    dob = datetime.now(timezone.utc) - timedelta(days=age * 365 + random.randint(0, 364))
+    dob = datetime.now(timezone.utc) - timedelta(
+        days=age * 365 + random.randint(0, 364)
+    )
     return dob.isoformat()
 
 
@@ -104,16 +165,23 @@ def register_user(client: httpx.Client, username: str, index: int) -> dict | Non
         return None
 
     # Login
-    login = client.post(f"{BASE_URL}/auth/token", data={
-        "username": username,
-        "password": "seedpassword123",
-    })
+    login = client.post(
+        f"{BASE_URL}/auth/token",
+        data={
+            "username": username,
+            "password": "seedpassword123",
+        },
+    )
     if login.status_code != 200:
         print(f"  ❌ Failed to login {username}: {login.text}")
         return None
 
     token = login.json()["access_token"]
-    user_id = client.get(f"{BASE_URL}/users/me", headers={"Authorization": f"Bearer {token}"}).json().get("id")
+    user_id = (
+        client.get(f"{BASE_URL}/users/me", headers={"Authorization": f"Bearer {token}"})
+        .json()
+        .get("id")
+    )
 
     return {"username": username, "token": token, "id": user_id}
 
@@ -156,6 +224,7 @@ MESSAGES = [
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
 
 def main(num_users: int, clear: bool):
     print(f"\n🌱 Seeding Findr with {num_users} Austin users...\n")
@@ -200,7 +269,9 @@ def main(num_users: int, clear: bool):
         message_count = 0
         for user in users:
             # Each user messages 2-4 random others
-            targets = random.sample([u for u in users if u["id"] != user["id"]], min(3, len(users) - 1))
+            targets = random.sample(
+                [u for u in users if u["id"] != user["id"]], min(3, len(users) - 1)
+            )
             for target in targets:
                 body = random.choice(MESSAGES)
                 send_message(client, user["token"], target["id"], body)
@@ -210,19 +281,23 @@ def main(num_users: int, clear: bool):
 
         # ── Summary ───────────────────────────────────────────────────────────
         print("─" * 40)
-        print(f"🎉 Seed complete!")
+        print("🎉 Seed complete!")
         print(f"   Users:    {len(users)}")
         print(f"   Messages: {message_count}")
-        print(f"\n   Swagger: http://localhost:8000/docs")
-        print(f"   Login with any seeded user:")
+        print("\n   Swagger: http://localhost:8000/docs")
+        print("   Login with any seeded user:")
         print(f"     username: {users[0]['username'] if users else 'N/A'}")
-        print(f"     password: seedpassword123\n")
+        print("     password: seedpassword123\n")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed Findr with test data")
-    parser.add_argument("--users", type=int, default=25, help="Number of users to create (max 50)")
-    parser.add_argument("--clear", action="store_true", help="Print reminder to wipe DB first")
+    parser.add_argument(
+        "--users", type=int, default=25, help="Number of users to create (max 50)"
+    )
+    parser.add_argument(
+        "--clear", action="store_true", help="Print reminder to wipe DB first"
+    )
     args = parser.parse_args()
 
     num_users = min(args.users, len(USERNAMES))

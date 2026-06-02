@@ -1,17 +1,21 @@
 import pygeohash
 from sqlalchemy import text
 
+
 def fuzz_coordinates(lat: float, lng: float) -> tuple[float, float]:
     grid = 160 / 364000
     fuzzed_lat = round(lat / grid) * grid
     fuzzed_lng = round(lng / grid) * grid
     return fuzzed_lat, fuzzed_lng
 
+
 def compute_geohash(lat: float, lng: float) -> str:
     return pygeohash.encode(lat, lng, precision=6)
 
+
 def miles_to_meters(miles: float) -> float:
     return miles * 1609.34
+
 
 def haversine_query(lat: float, lng: float, radius_miles: float):
     return text("""

@@ -21,10 +21,14 @@ async def send_message(
     chat_id: UUID = None,
 ):
     if not recipient_id and not chat_id:
-        raise HTTPException(status_code=400, detail="Provide either recipient_id or chat_id.")
+        raise HTTPException(
+            status_code=400, detail="Provide either recipient_id or chat_id."
+        )
     if recipient_id and chat_id:
-        raise HTTPException(status_code=400, detail="Provide either recipient_id or chat_id, not both.")
-    
+        raise HTTPException(
+            status_code=400, detail="Provide either recipient_id or chat_id, not both."
+        )
+
     if recipient_id:
         result = await db.execute(select(User).where(User.id == recipient_id))
         recipient = result.scalar_one_or_none()
@@ -36,9 +40,11 @@ async def send_message(
         existing_chat_result = await db.execute(
             select(ChatMember.chat_id)
             .where(ChatMember.user_id == current_user.id)
-            .where(ChatMember.chat_id.in_(
-                select(ChatMember.chat_id).where(ChatMember.user_id == recipient_id)
-            ))
+            .where(
+                ChatMember.chat_id.in_(
+                    select(ChatMember.chat_id).where(ChatMember.user_id == recipient_id)
+                )
+            )
         )
         existing_chat_id = existing_chat_result.scalar_one_or_none()
 
@@ -49,8 +55,12 @@ async def send_message(
             db.add(new_chat)
             await db.flush()
 
-            db.add(ChatMember(chat_id=new_chat.id, user_id=current_user.id, is_admin=False))
-            db.add(ChatMember(chat_id=new_chat.id, user_id=recipient_id, is_admin=False))
+            db.add(
+                ChatMember(chat_id=new_chat.id, user_id=current_user.id, is_admin=False)
+            )
+            db.add(
+                ChatMember(chat_id=new_chat.id, user_id=recipient_id, is_admin=False)
+            )
             await db.flush()
             chat_id = new_chat.id
 
@@ -67,7 +77,9 @@ async def send_message(
             )
         )
         if not member_result.scalar_one_or_none():
-            raise HTTPException(status_code=403, detail="You are not a member of this chat.")
+            raise HTTPException(
+                status_code=403, detail="You are not a member of this chat."
+            )
 
     new_message = Message(
         chat_id=chat_id,
@@ -78,7 +90,7 @@ async def send_message(
     await db.commit()
     await db.refresh(new_message)
     return new_message
-    
+
 
 @router.get("/thread", response_model=list[MessageOut])
 async def get_thread(
@@ -89,22 +101,30 @@ async def get_thread(
     limit: int = 50,
 ):
     if not recipient_id and not chat_id:
-        raise HTTPException(status_code=400, detail="Provide either recipient_id or chat_id.")
+        raise HTTPException(
+            status_code=400, detail="Provide either recipient_id or chat_id."
+        )
     if recipient_id and chat_id:
-        raise HTTPException(status_code=400, detail="Provide either recipient_id or chat_id, not both.")
+        raise HTTPException(
+            status_code=400, detail="Provide either recipient_id or chat_id, not both."
+        )
 
     if recipient_id:
         # Find the DM chat between current_user and recipient
         existing_chat_result = await db.execute(
             select(ChatMember.chat_id)
             .where(ChatMember.user_id == current_user.id)
-            .where(ChatMember.chat_id.in_(
-                select(ChatMember.chat_id).where(ChatMember.user_id == recipient_id)
-            ))
+            .where(
+                ChatMember.chat_id.in_(
+                    select(ChatMember.chat_id).where(ChatMember.user_id == recipient_id)
+                )
+            )
         )
         chat_id = existing_chat_result.scalar_one_or_none()
         if not chat_id:
-            raise HTTPException(status_code=404, detail="No conversation found with this user.")
+            raise HTTPException(
+                status_code=404, detail="No conversation found with this user."
+            )
 
     if chat_id:
         # Verify chat exists
@@ -120,51 +140,68 @@ async def get_thread(
             )
         )
         if not member_result.scalar_one_or_none():
-            raise HTTPException(status_code=403, detail="You are not a member of this chat.")
+            raise HTTPException(
+                status_code=403, detail="You are not a member of this chat."
+            )
 
     # Query messages ordered by most recent first, apply limit
     messages_result = await db.execute(
         select(Message)
         .where(Message.chat_id == chat_id)
-        .where(Message.deleted_at == None)
+        .where(Message.deleted_at.is_(None))
         .order_by(Message.sent_at.desc())
         .limit(limit)
     )
     return messages_result.scalars().all()
 
+
 @router.patch("/{message_id}")
-async def edit_message(message_id: UUID, payload: MessageEdit, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def edit_message(
+    message_id: UUID,
+    payload: MessageEdit,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Message).where(Message.id == message_id))
     message = result.scalar_one_or_none()
 
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
+
     if message.sender_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You can only edit your own messages" )
-    
+        raise HTTPException(
+            status_code=403, detail="You can only edit your own messages"
+        )
+
     if message.deleted_at:
         raise HTTPException(status_code=400, detail="Message deleted.")
-    
+
     message.body = payload.body
     message.edited_at = utcnow()
     await db.commit()
     return {"status": "edited"}
 
+
 @router.delete("/{message_id}")
-async def delete_message(message_id: UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_message(
+    message_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Message).where(Message.id == message_id))
     message = result.scalar_one_or_none()
 
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
+
     if message.sender_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You can only delete your own messages" )
-    
+        raise HTTPException(
+            status_code=403, detail="You can only delete your own messages"
+        )
+
     if message.deleted_at:
         raise HTTPException(status_code=400, detail="Message deleted.")
-    
+
     message.deleted_at = utcnow()
     await db.commit()
     return {"status": "deleted"}

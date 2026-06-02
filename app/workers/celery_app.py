@@ -3,8 +3,8 @@ from celery import Celery
 from celery.schedules import crontab
 
 REDIS = os.getenv("REDIS_URL")
-celery = Celery('findr', broker=REDIS, backend=REDIS)
-celery.autodiscover_tasks(['app.workers'])
+celery = Celery("findr", broker=REDIS, backend=REDIS)
+celery.autodiscover_tasks(["app.workers"])
 celery.conf.update(
     worker_hijack_root_logger=False,
     broker_connection_retry_on_startup=True,
@@ -19,12 +19,10 @@ celery.conf.update(
             "task": "app.workers.retention.purge_old_messages",
             "schedule": crontab(hour=2, minute=0),
         },
-
         "hard_delete.hard_delete_users": {
             "task": "app.workers.hard_delete.hard_delete_users",
             "schedule": crontab(hour=3, minute=0),
         },
-
         # v2 — US scale
         # "presence.cleanup_stale_presence": { ... },
         # "analytics.aggregate_daily_stats": { ... },
