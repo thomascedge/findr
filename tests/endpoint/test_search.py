@@ -60,7 +60,7 @@ async def test_search_excludes_inactive_users(
     await db.refresh(test_user_2)
 
     response = await client.get(
-        "/api/v1/search/users?q={test_user_2.username}", headers=auth_headers
+        f"/api/v1/search/users?q={test_user_2.username}", headers=auth_headers
     )
     assert response.status_code == 200
     usernames = [user["username"] for user in response.json()]

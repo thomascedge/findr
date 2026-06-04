@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db import get_db
-from app.models.models import User
+from app.models.models import User, TokenBlacklist
 from app.core.variables import SECRET_KEY
 
 ALGORITHM = "HS256"
@@ -51,6 +51,14 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+
+    blacklisted = await db.execute(
+        select(TokenBlacklist).where(TokenBlacklist.jti == token)
+    )
+    if blacklisted.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked"
         )
 
     result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
