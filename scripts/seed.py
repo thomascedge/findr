@@ -155,7 +155,7 @@ def register_user(client: httpx.Client, username: str, index: int) -> dict | Non
     }
 
     # Add date_of_birth if your schema requires it
-    # payload["date_of_birth"] = random_dob()
+    payload["date_of_birth"] = random_dob()
 
     response = client.post(f"{BASE_URL}/auth/register", json=payload)
     if response.status_code == 409:
