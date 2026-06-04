@@ -63,7 +63,6 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
     if result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="User already exists.")
 
-    # Generate token once and use the same one for both the DB row and the email
     verification_token = secrets.token_urlsafe(32)
 
     new_user = User(
@@ -174,7 +173,7 @@ async def forgot_password(
         user.password_reset_token = token
         user.password_reset_expires_at = utcnow() + timedelta(hours=1)
         await db.commit()
-        send_password_reset_email(payload.email, token, user.username)
+        send_password_reset_email(payload.email, token)
 
     return {"status": "if that email exists, a reset link has been sent"}
 
@@ -192,7 +191,7 @@ async def reset_password(
     if not user:
         raise HTTPException(status_code=400, detail="Invalid reset token.")
 
-    if user.password_reset_expires_at < datetime.now(timezone.utc):
+    if user.password_reset_expires_at < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Reset token has expired.")
 
     user.hashed_password = hash_password(payload.new_password)
@@ -215,7 +214,7 @@ async def reactivate_by_token(token: str, db: AsyncSession = Depends(get_db)):
     if user.is_active:
         return {"status": "account already active"}
 
-    days_since_deactivation = (utcnow() - user.deactivated_at).days
+    days_since_deactivation = (datetime.utcnow() - user.deactivated_at).days
     if days_since_deactivation > 30:
         raise HTTPException(status_code=400, detail="Reactivation window expired.")
 
@@ -251,7 +250,7 @@ async def get_onboarding_status(
     result = await db.execute(
         select(UserPhoto).where(
             UserPhoto.user_id == current_user.id,
-            UserPhoto.deleted_at is None,
+            UserPhoto.deleted_at == None,
         )
     )
     user_photo = result.scalar_one_or_none()

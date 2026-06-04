@@ -5,10 +5,13 @@ terms acceptance, location consent, and onboarding status.
 """
 
 import pytest
+import secrets
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import timedelta
 
-from app.models.models import User
+from app.models.models import User, TokenBlacklist, UserLocation, UserPhoto, utcnow
+from app.core.security import create_token
 
 # ── Email verification ────────────────────────────────────────────────────────
 
@@ -23,7 +26,20 @@ async def test_verify_email_success(
     # Assert 200
     # Refresh test_user from DB — assert email_verified_at is set
     # Assert email_verification_token is now None (single-use)
-    pass
+    test_user.email_verification_token = secrets.token_urlsafe(32)
+    await db.commit()
+    await db.refresh(test_user)
+
+    response = await client.post(
+        '/api/v1/auth/verify-email',
+        json={
+            'token': test_user.email_verification_token
+        }
+    )
+    assert response.status_code == 200
+    await db.refresh(test_user)
+    assert test_user.email_verified_at is not None
+    assert test_user.email_verification_token is None
 
 
 @pytest.mark.asyncio
@@ -31,7 +47,11 @@ async def test_verify_email_invalid_token(client: AsyncClient):
     """An invalid verification token returns 400."""
     # POST /api/v1/auth/verify-email with a random string as token
     # Assert 400
-    pass
+    response = await client.post(
+        '/api/v1/auth/verify-email',
+        json={'token': 'abcdef'}
+    )
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -43,7 +63,21 @@ async def test_resend_verification_generates_new_token(
     # POST /api/v1/auth/resend-verification with auth_headers
     # Assert 200
     # Refresh test_user — assert email_verification_token is not None
-    pass
+    test_user.email_verification_token = None
+    test_user.email_verified_at = None
+    await db.commit()
+    await db.refresh(test_user)
+
+    response = await client.post(
+        '/api/v1/auth/resend-verification',
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data['status'] == "verification email sent"
+    await db.refresh(test_user)
+    assert test_user.email_verification_token is not None
+
 
 
 @pytest.mark.asyncio
@@ -54,7 +88,16 @@ async def test_resend_verification_already_verified(
     # Set email_verified_at on test_user
     # POST /api/v1/auth/resend-verification
     # Assert 200 and status == "already verified"
-    pass
+    test_user.email_verified_at = utcnow()
+    await db.commit()
+
+    response = await client.post(
+        '/api/v1/auth/resend-verification',
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data['status'] == "already verified"
 
 
 # ── Password reset ────────────────────────────────────────────────────────────
@@ -65,7 +108,13 @@ async def test_forgot_password_always_200(client: AsyncClient):
     """forgot-password always returns 200 regardless of email existence."""
     # POST /api/v1/auth/forgot-password with a non-existent email
     # Assert 200 (not 404 — prevents user enumeration)
-    pass
+    response = await client.post(
+        '/api/v1/auth/forgot-password',
+        json={
+            'email': 'non_existent@email.com'
+        }
+    )
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -76,7 +125,17 @@ async def test_forgot_password_sets_token(
     # POST /api/v1/auth/forgot-password with test_user.email
     # Refresh test_user — assert password_reset_token is not None
     # Assert password_reset_expires_at is in the future
-    pass
+    response = await client.post(
+        '/api/v1/auth/forgot-password',
+        json={
+            'email': test_user.email
+        }
+    )
+    assert response.status_code == 200
+
+    await db.refresh(test_user)
+    assert test_user.password_reset_token is not None
+    assert test_user.password_reset_expires_at > utcnow().replace(tzinfo=None)
 
 
 @pytest.mark.asyncio
@@ -88,7 +147,22 @@ async def test_reset_password_success(
     # POST /api/v1/auth/reset-password with the token and new_password
     # Assert 200
     # Refresh test_user — assert password_reset_token is None (cleared)
-    pass
+    reset_token = secrets.token_urlsafe(32)
+    test_user.password_reset_token = reset_token
+    test_user.password_reset_expires_at = utcnow() + timedelta(days=365)
+    await db.commit()
+
+    response = await client.post(
+        '/api/v1/auth/reset-password',
+        json={
+            'token': reset_token,
+            'new_password': 'new_password'
+        }
+    )
+    assert response.status_code == 200
+
+    await db.refresh(test_user)
+    assert test_user.password_reset_token is None
 
 
 @pytest.mark.asyncio
@@ -99,7 +173,19 @@ async def test_reset_password_expired_token(
     # Seed password_reset_token and a past password_reset_expires_at on test_user
     # POST /api/v1/auth/reset-password
     # Assert 400
-    pass
+    expired_token = secrets.token_urlsafe(32)
+    test_user.password_reset_token = expired_token
+    test_user.password_reset_expires_at = utcnow() - timedelta(days=7)
+    await db.commit()
+
+    response = await client.post(
+        '/api/v1/auth/reset-password',
+        json={
+            'token': expired_token,
+            'new_password': 'new_password'
+        }
+    )
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -107,7 +193,14 @@ async def test_reset_password_invalid_token(client: AsyncClient):
     """An invalid reset token returns 400."""
     # POST /api/v1/auth/reset-password with a made-up token
     # Assert 400
-    pass
+    response = await client.post(
+        '/api/v1/auth/reset-password',
+        json={
+            'token': 'abcdef',
+            'new_password': 'new_password'
+        }
+    )
+    assert response.status_code == 400
 
 
 # ── Logout ────────────────────────────────────────────────────────────────────
@@ -121,7 +214,14 @@ async def test_logout_success(
     # POST /api/v1/auth/logout with auth_headers
     # Assert 204
     # Query TokenBlacklist — assert a row exists for the token
-    pass
+    response = await client.post(
+        '/api/v1/auth/logout',
+        headers=auth_headers
+    )
+    assert response.status_code == 204
+    token = auth_headers['Authorization'].split(' ')[1]
+    token_blacklist = await db.get(TokenBlacklist, token)
+    assert token_blacklist is not None
 
 
 @pytest.mark.asyncio
@@ -129,8 +229,10 @@ async def test_logout_requires_auth(client: AsyncClient):
     """Logging out without a token returns 401."""
     # POST /api/v1/auth/logout with no headers
     # Assert 401
-    pass
-
+    response = await client.post(
+        '/api/v1/auth/logout' 
+    )
+    assert response.status_code == 401
 
 # ── Reactivation ──────────────────────────────────────────────────────────────
 
@@ -145,7 +247,20 @@ async def test_reactivate_within_30_days(
     # POST /api/v1/auth/reactivate-by-token?token=...
     # Assert 200
     # Refresh test_user — assert is_active is True and deactivated_at is None
-    pass
+    test_user.is_active = False
+    test_user.deactivated_at = utcnow() - timedelta(days=10)
+    await db.commit()
+
+    token = create_token(test_user.id)
+
+    response = await client.post(
+        f'/api/v1/auth/reactivate-by-token?token={token}',
+    )
+    assert response.status_code == 200
+
+    await db.refresh(test_user)
+    assert test_user.is_active is True
+    assert test_user.deactivated_at is None
 
 
 @pytest.mark.asyncio
@@ -156,7 +271,16 @@ async def test_reactivate_after_30_days_blocked(
     # Set test_user.is_active = False and deactivated_at = 35 days ago
     # POST /api/v1/auth/reactivate-by-token?token=...
     # Assert 400
-    pass
+    test_user.is_active = False
+    test_user.deactivated_at = utcnow() - timedelta(days=35)
+    await db.commit()
+
+    token = create_token(test_user.id)
+
+    response = await client.post(
+        f'/api/v1/auth/reactivate-by-token?token={token}'
+    )
+    assert response.status_code == 400
 
 
 # ── Terms & consent ───────────────────────────────────────────────────────────
@@ -170,7 +294,14 @@ async def test_accept_terms(
     # POST /api/v1/legal/accept-terms with {"terms_version": "1.0"}
     # Assert 200
     # Refresh test_user — assert terms_accepted_at is set and terms_version == "1.0"
-    pass
+    response = await client.post(
+        '/api/v1/legal/accept-terms',
+        json={'terms_version': '1.0'},
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    await db.refresh(test_user)
+    assert test_user.terms_version == '1.0'
 
 
 @pytest.mark.asyncio
@@ -181,7 +312,13 @@ async def test_consent_location(
     # POST /api/v1/legal/consent-location
     # Assert 200
     # Refresh test_user — assert location_consent_at is set
-    pass
+    response = await client.post(
+        '/api/v1/legal/consent-location',
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    await db.refresh(test_user)
+    assert test_user.location_consent_at is not None
 
 
 # ── Onboarding status ─────────────────────────────────────────────────────────
@@ -195,7 +332,15 @@ async def test_onboarding_status_all_incomplete(
     # GET /api/v1/auth/onboarding-status
     # Assert 200
     # Assert email_verified is False, terms_accepted is False, onboarding_complete is False
-    pass
+    response = await client.get(
+        '/api/v1/auth/onboarding-status',
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data['email_verified'] is False
+    assert data['terms_accepted'] is False
+    assert data['onboarding_complete'] is False
 
 
 @pytest.mark.asyncio
@@ -208,4 +353,40 @@ async def test_onboarding_status_complete(
     # Seed: a UserPhoto row with status=COMPLETE for test_user
     # GET /api/v1/auth/onboarding-status
     # Assert onboarding_complete is True
-    pass
+    test_user.email_verified_at = utcnow()
+    test_user.terms_accepted_at = utcnow()
+    test_user.location_consent_at = utcnow()
+
+    user_location = UserLocation(
+        user_id=test_user.id,
+        lat=51.5074,
+        lng=-0.1278,
+        geohash="gcpvj",
+        is_visible=True,
+        last_seen=utcnow()
+    )
+
+    user_photo = UserPhoto(
+        user_id=test_user.id,
+        s3_key="photos/test.jpg",
+        display_order=1,
+        moderation_status="complete",
+        reported_at=None,
+        deleted_at=None
+    )
+
+    db.add(user_location)
+    await db.commit()
+    await db.refresh(user_location)
+
+    db.add(user_photo)
+    await db.commit()
+    await db.refresh(user_photo)
+
+    response = await client.get(
+        '/api/v1/auth/onboarding-status',
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data['onboarding_complete'] is True
