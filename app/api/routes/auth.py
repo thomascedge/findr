@@ -191,7 +191,7 @@ async def reset_password(
     if not user:
         raise HTTPException(status_code=400, detail="Invalid reset token.")
 
-    if user.password_reset_expires_at < datetime.utcnow():
+    if user.password_reset_expires_at < utcnow():
         raise HTTPException(status_code=400, detail="Reset token has expired.")
 
     user.hashed_password = hash_password(payload.new_password)
@@ -214,7 +214,7 @@ async def reactivate_by_token(token: str, db: AsyncSession = Depends(get_db)):
     if user.is_active:
         return {"status": "account already active"}
 
-    days_since_deactivation = (datetime.utcnow() - user.deactivated_at).days
+    days_since_deactivation = (utcnow() - user.deactivated_at).days
     if days_since_deactivation > 30:
         raise HTTPException(status_code=400, detail="Reactivation window expired.")
 
